@@ -1,26 +1,62 @@
-const express = require("express");
+const express = require('express');
 const app = express();
-const bodyParser = require("body-parser");
 
-const router = require("./routes");
-require("./models/db");
+const db = require('./db/connection.js');
 
-// app.set("view engine", "ejs");
+const server = app.listen(8080, () => console.log('listening'));
 
+app.use(express.static('public'));
 app.use(express.json());
+app.use(express.urlencoded({ extended: true }));
 
-app.use(bodyParser.urlencoded({ extended: true }));
+const { Todo } = require('./models/Todo.js');
 
-app.use("/api/", router);
-
-// app.get("/", (req, res) => {
-//   res.render("index");
-// });
-
-app.get("/*", (req, res, next) => {
-  res.status(404).json({ error: "Page not found" });
+//post a to do
+app.post('/todolist', (req, res) => {
+	let todo = new Todo(req.body);
+	todo.save((error) => {
+		if (error) {
+			res.status(500).json(error);
+			return;
+		} else {
+			res.status(201).json({
+				message: 'New to do item created',
+				data: todo,
+			});
+		}
+	});
 });
 
-app.listen(8080, () => {
-  console.log("Server running on port 8080.");
+// get all to dos
+app.get('/todolist', (req, res) => {
+	Todo.find({}).exec((error, result) => {
+		if (error) {
+			res.status(500).json(error);
+			return;
+		} else {
+			res.json(result);
+		}
+	});
+});
+
+//delete item
+app.delete('/todolist/delete/:id', (req, res) => {
+	const id = req.params.id;
+	Todo.deleteOne({ _id: `${id}` })
+		.then((data) => {
+			if (!data) {
+				res.status(404).send({
+					message: `Cannot delete to do item with id=${id}!`,
+				});
+			} else {
+				res.send({
+					message: `To do item id=${id} was deleted from the database!`,
+				});
+			}
+		})
+		.catch((error) => {
+			res.status(500).send({
+				message: `Could not delete to do with the id=${id}!`,
+			});
+		});
 });
